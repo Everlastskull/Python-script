@@ -88,6 +88,26 @@ Ces deux activités sont complémentaires mais distinctes. Dans un dossier RNCP 
 
 ---
 
+## 📧 Digest email automatique
+
+Une GitHub Action (`.github/workflows/cyber-watch-digest.yml`) tourne chaque matin (6h UTC) et envoie par email les nouveaux articles publiés sur les 24 dernières heures, groupés par catégorie. Le script est dans `cyber-watch/digest.py` (bibliothèque standard uniquement, aucune dépendance à installer), la liste des flux dans `cyber-watch/feeds.py`.
+
+Certaines sources du tableau ci-dessus n'ont pas de flux RSS fiable (RSS discontinué, absent, ou introuvable) et ne sont donc pas incluses dans l'automatisation : ENISA, Legifrance, Claroty Team82, NVD, AttackerKB, Mandiant/Google Cloud. Elles restent à consulter manuellement.
+
+### Configuration requise
+
+Dans les paramètres du repo (`Settings` → `Secrets and variables` → `Actions`), ajouter 3 secrets :
+
+| Secret | Valeur |
+|---|---|
+| `GMAIL_USER` | Adresse Gmail utilisée pour l'envoi |
+| `GMAIL_APP_PASSWORD` | [Mot de passe d'application](https://myaccount.google.com/apppasswords) généré pour ce compte Gmail (pas le mot de passe du compte) |
+| `DIGEST_TO` | Adresse de destination du digest |
+
+Le workflow peut aussi être déclenché manuellement depuis l'onglet **Actions** (`workflow_dispatch`).
+
+---
+
 ## Licence
 
 MIT

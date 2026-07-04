@@ -18,11 +18,33 @@ USER_AGENT = (
 NAV_TIMEOUT_MS = 30000
 STEALTH_INIT_SCRIPT = "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
 MIN_TEXT_LENGTH = 15
+MAX_TITLE_LENGTH = 130
 MAX_ARTICLES_PER_SOURCE = 8
 EXCLUDED_SLUGS = {
     "tag", "tags", "author", "authors", "page", "category", "categories",
     "about", "contact", "rss", "feed", "search", "login", "subscribe",
 }
+# Liens "appel à l'action" (lire la suite, etc.) attrapés par erreur car ils
+# pointent vers un article mais n'ont pas de titre exploitable comme texte.
+JUNK_PREFIXES = (
+    "read the full story", "read the full", "read more", "read now",
+    "continue reading", "learn more", "see more", "view all", "view more",
+    "lire la suite", "en savoir plus", "voir plus", "tout voir",
+)
+
+
+def clean_title(text):
+    """Réduit les espaces/retours-ligne multiples (les cartes de blog collent
+    souvent date + auteur + titre + résumé) et tronque à une longueur lisible."""
+    collapsed = " ".join(text.split())
+    if len(collapsed) > MAX_TITLE_LENGTH:
+        collapsed = collapsed[:MAX_TITLE_LENGTH].rstrip() + "…"
+    return collapsed
+
+
+def is_junk_title(text):
+    low = text.strip().lower()
+    return any(low.startswith(prefix) for prefix in JUNK_PREFIXES)
 
 
 def contains_any(*substrings):
@@ -70,12 +92,14 @@ def _extract_links(page, predicate):
         text = link.get("text", "")
         if len(text) < MIN_TEXT_LENGTH:
             continue
+        if is_junk_title(text):
+            continue
         if not predicate(href):
             continue
         if href in seen_urls:
             continue
         seen_urls.add(href)
-        articles.append((text, href))
+        articles.append((clean_title(text), href))
         if len(articles) >= MAX_ARTICLES_PER_SOURCE:
             break
     return articles

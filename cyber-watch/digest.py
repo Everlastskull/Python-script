@@ -6,12 +6,14 @@ récentes de setuptools).
 """
 
 import email.utils
+import json
 import os
 import re
 import smtplib
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
@@ -24,6 +26,7 @@ LOOKBACK_HOURS = int(os.environ.get("DIGEST_LOOKBACK_HOURS", "24"))
 REQUEST_TIMEOUT = 15
 NETWORK_RETRIES = 2
 RETRY_DELAY_SECONDS = 3
+NVD_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 # Se présenter comme un vrai lecteur RSS : certains sites (CERT-FR, CISA...)
 # renvoient une réponse vide ou un 403 aux clients HTTP non identifiés.
 REQUEST_HEADERS = {
@@ -147,6 +150,44 @@ def fetch_recent_entries(url, cutoff):
     return recent, None
 
 
+def fetch_nvd_recent(cutoff):
+    """NVD a retiré ses flux RSS au profit de l'API 2.0 (gratuite, sans clé,
+    voir https://nvd.nist.gov/general/news/api-20-announcements)."""
+    now = datetime.now(timezone.utc)
+    params = {
+        "pubStartDate": cutoff.strftime("%Y-%m-%dT%H:%M:%S.000"),
+        "pubEndDate": now.strftime("%Y-%m-%dT%H:%M:%S.000"),
+        "resultsPerPage": "20",
+    }
+    url = f"{NVD_API_URL}?{urllib.parse.urlencode(params)}"
+    data, error = fetch_with_retry(url)
+    if error:
+        return [], error
+
+    try:
+        payload = json.loads(data)
+    except json.JSONDecodeError as exc:
+        return [], f"réponse illisible ({exc})"
+
+    entries = []
+    for item in payload.get("vulnerabilities", []):
+        cve = item.get("cve", {})
+        cve_id = cve.get("id", "?")
+        description = next(
+            (d["value"] for d in cve.get("descriptions", []) if d.get("lang") == "en"),
+            "",
+        )
+        title = f"{cve_id} — {description[:140]}" if description else cve_id
+        link = f"https://nvd.nist.gov/vuln/detail/{cve_id}"
+        entries.append((title, link))
+    return entries, None
+
+
+API_SOURCES = {
+    "CVE / Offensif": [("NVD – CVE récents (API)", fetch_nvd_recent)],
+}
+
+
 def build_digest():
     cutoff = datetime.now(timezone.utc) - timedelta(hours=LOOKBACK_HOURS)
     sections = []
@@ -154,6 +195,16 @@ def build_digest():
         lines = []
         for name, url in sources:
             entries, error = fetch_recent_entries(url, cutoff)
+            if error:
+                lines.append(f"  - {name}: indisponible ({error})")
+                continue
+            if not entries:
+                continue
+            lines.append(f"  - {name}:")
+            for title, link in entries:
+                lines.append(f"      * {title}\n        {link}")
+        for name, fetch_api in API_SOURCES.get(category, []):
+            entries, error = fetch_api(cutoff)
             if error:
                 lines.append(f"  - {name}: indisponible ({error})")
                 continue

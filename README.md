@@ -92,8 +92,11 @@ Ces deux activités sont complémentaires mais distinctes. Dans un dossier RNCP 
 
 Une GitHub Action (`.github/workflows/cyber-watch-digest.yml`) tourne chaque matin (6h UTC) et envoie par email les nouveaux articles publiés sur les 24 dernières heures, groupés par catégorie. Le script est dans `cyber-watch/digest.py` (bibliothèque standard uniquement, aucune dépendance à installer), la liste des flux dans `cyber-watch/feeds.py`.
 
+NVD n'a plus de flux RSS (retiré au profit de l'API officielle) : le digest interroge directement l'[API NVD 2.0](https://nvd.nist.gov/developers/vulnerabilities) (gratuite, sans clé) pour les CVE publiées dans la fenêtre de 24h.
+
 Certaines sources du tableau ci-dessus ne sont pas incluses dans l'automatisation et restent à consulter manuellement :
-- **Pas de flux RSS fiable** (RSS discontinué, absent, ou introuvable) : ENISA, Legifrance, Claroty Team82, NVD, AttackerKB, Mandiant/Google Cloud
+- **Pas de flux RSS ni d'API gratuite exploitable** : ENISA, Claroty Team82, Mandiant/Google Cloud
+- **API gratuite existante mais nécessitant un compte personnel** (non configuré pour l'instant) : Legifrance ([API via PISTE](https://piste.gouv.fr/registration)), AttackerKB (clé sur le profil utilisateur)
 - **Protection anti-bot** (Cloudflare "Bot Fight Mode" ou équivalent gouvernemental, qui renvoie un défi JavaScript ou une réponse vide aux clients scriptés — y compris depuis les runners GitHub Actions, sans contournement possible sans navigateur réel) : CERT-FR (avis/alertes/bulletins), Recorded Future, Sekoia.io, CISA ICS Advisories, Dragos
 
 La liste à jour de ces sources manuelles est reprise chaque jour en bas du digest email (`cyber-watch/feeds.py::MANUAL_ONLY`).

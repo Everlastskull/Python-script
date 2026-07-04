@@ -31,6 +31,5 @@ MANUAL_ONLY = [
     "ENISA",
     "Legifrance",
     "Claroty Team82",
-    "NVD",
     "AttackerKB",
 ]

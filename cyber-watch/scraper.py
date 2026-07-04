@@ -7,6 +7,7 @@ remonte 0 résultat pour une source qui en a manifestement, les sélecteurs/URL
 ci-dessous doivent être ajustés en conséquence.
 """
 
+import re
 from urllib.parse import urlparse
 
 from playwright.sync_api import sync_playwright
@@ -18,7 +19,7 @@ USER_AGENT = (
 NAV_TIMEOUT_MS = 30000
 STEALTH_INIT_SCRIPT = "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
 MIN_TEXT_LENGTH = 15
-MAX_TITLE_LENGTH = 130
+MAX_TITLE_LENGTH = 110
 MAX_ARTICLES_PER_SOURCE = 8
 EXCLUDED_SLUGS = {
     "tag", "tags", "author", "authors", "page", "category", "categories",
@@ -31,14 +32,24 @@ JUNK_PREFIXES = (
     "continue reading", "learn more", "see more", "view all", "view more",
     "lire la suite", "en savoir plus", "voir plus", "tout voir",
 )
+# Certaines cartes de blog (Recorded Future...) collent en préfixe la date puis
+# le nom de l'équipe/auteur en capitales avant le vrai titre. Ex :
+# "25 JUN 2026 • INSIKT GROUP® Titre réel…". On retire ce préfixe métadonnées.
+_META_PREFIX = re.compile(
+    r"^\d{1,2}\s+[A-Za-zÀ-ÿ]{3,}\s+\d{4}\s*[•·|]\s*"  # date + séparateur
+    r"(?:[A-Z0-9®&'./·\s-]+?\s+)?"                      # équipe/auteur en capitales (option.)
+    r"(?=[A-Z][a-zà-ÿ])"                                # jusqu'au 1er mot en Casse normale
+)
 
 
 def clean_title(text):
     """Réduit les espaces/retours-ligne multiples (les cartes de blog collent
-    souvent date + auteur + titre + résumé) et tronque à une longueur lisible."""
+    souvent date + auteur + titre + résumé), retire un éventuel préfixe de
+    métadonnées, et tronque à une longueur lisible."""
     collapsed = " ".join(text.split())
+    collapsed = _META_PREFIX.sub("", collapsed).strip()
     if len(collapsed) > MAX_TITLE_LENGTH:
-        collapsed = collapsed[:MAX_TITLE_LENGTH].rstrip() + "…"
+        collapsed = collapsed[:MAX_TITLE_LENGTH].rstrip(" ,.;:—-") + "…"
     return collapsed
 
 

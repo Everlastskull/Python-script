@@ -244,7 +244,11 @@ def collect_report():
 
 
 def render_text(report):
-    sections = []
+    header = (
+        f"VEILLE CYBER QUOTIDIENNE — par Matthieu Maurial\n"
+        f"{datetime.now().strftime('%d/%m/%Y')} · dernières 24 h\n"
+    )
+    sections = [header]
     for category, sources in report.items():
         lines = []
         for name, entries, error in sources:
@@ -323,8 +327,9 @@ def render_html(report):
     return f"""\
 <div style="font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;max-width:640px;margin:0 auto;background:#f3f4f6;padding:24px;">
   <div style="text-align:center;margin-bottom:24px;">
-    <div style="font-size:20px;font-weight:700;color:#111827;">🛡️ Cyber Watch</div>
-    <div style="font-size:13px;color:#6b7280;">Digest du {date_str} · veille des dernières 24h</div>
+    <div style="font-size:22px;font-weight:700;color:#111827;">🛡️ Veille Cyber Quotidienne</div>
+    <div style="font-size:13px;color:#6b7280;margin-top:2px;">par Matthieu Maurial</div>
+    <div style="font-size:12px;color:#9ca3af;margin-top:4px;">{date_str} · dernières 24 h</div>
   </div>
   {"".join(cards) if cards else '<div style="text-align:center;color:#6b7280;font-size:13px;">Aucun nouvel article dans la fenêtre de veille.</div>'}
   <div style="border-top:1px solid #d1d5db;margin-top:20px;padding-top:14px;font-size:11px;color:#9ca3af;">
@@ -343,7 +348,7 @@ def send_email(text_body, html_body):
     message = MIMEMultipart("alternative")
     message["From"] = smtp_user
     message["To"] = recipient
-    message["Subject"] = f"Cyber Watch — Digest du {datetime.now().strftime('%Y-%m-%d')}"
+    message["Subject"] = f"Veille Cyber Quotidienne — {datetime.now().strftime('%Y-%m-%d')}"
     message.attach(MIMEText(text_body, "plain"))
     message.attach(MIMEText(html_body, "html"))
 

@@ -1,4 +1,9 @@
-"""Liste des flux RSS de veille, groupés par catégorie (cf. README.md)."""
+"""Liste des flux RSS de veille, groupés par catégorie (cf. README.md).
+
+Les sources sans flux RSS/API exploitable, ou protégées par un anti-bot léger,
+sont tentées via scraping navigateur (voir scraper.py). Ce qui reste ici dans
+MANUAL_ONLY n'a ni flux, ni API, ni page listant les articles de façon fiable.
+"""
 
 FEEDS = {
     "GRC / Réglementaire": [
@@ -17,20 +22,14 @@ FEEDS = {
     ],
 }
 
-# Sources bloquées par une protection anti-bot (Cloudflare "Bot Fight Mode" ou
-# équivalent côté gouvernemental) qui renvoie un défi JavaScript ou une réponse
-# vide aux clients scriptés — y compris depuis les runners GitHub Actions.
-# Impossible à contourner sans exécuter un vrai navigateur : à consulter
-# manuellement.
+# Ni flux RSS, ni API gratuite exploitable, ni page de liste stable à scraper :
+# ENISA (RSS discontinué, pas de remplacement), Legifrance et AttackerKB (API
+# gratuites mais nécessitant un compte personnel, non configuré), Claroty
+# Team82 et Mandiant/Google Cloud (pas de flux ni d'API publique trouvée).
 MANUAL_ONLY = [
-    "CERT-FR (avis / alertes / bulletins)",
-    "Recorded Future Blog",
-    "Sekoia.io Blog",
-    "CISA ICS Advisories",
-    "Dragos Blog",
     "ENISA",
-    "Legifrance",
+    "Legifrance (API disponible via piste.gouv.fr, compte non configuré)",
     "Claroty Team82",
-    "NVD",
-    "AttackerKB",
+    "AttackerKB (API disponible, compte non configuré)",
+    "Mandiant / Google Cloud Threat Intelligence",
 ]

@@ -7,6 +7,7 @@ récentes de setuptools).
 
 import email.utils
 import os
+import re
 import smtplib
 import sys
 import urllib.request
@@ -19,7 +20,19 @@ from feeds import FEEDS
 
 LOOKBACK_HOURS = int(os.environ.get("DIGEST_LOOKBACK_HOURS", "24"))
 REQUEST_TIMEOUT = 15
-USER_AGENT = "cyber-watch-digest/1.0 (+https://github.com/Everlastskull/Python-script)"
+# Se présenter comme un vrai lecteur RSS : certains sites (CERT-FR, CISA...)
+# renvoient une réponse vide ou un 403 aux clients HTTP non identifiés.
+REQUEST_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (compatible; cyber-watch-digest/1.0; +https://github.com/Everlastskull/Python-script)",
+    "Accept": "application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.8",
+}
+# Répare les esperluettes non échappées, fréquentes dans les flux mal générés
+# (ex: Sekoia), qui font échouer un parseur XML strict.
+_BARE_AMPERSAND = re.compile(rb"&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F]+);)")
+
+
+def sanitize_xml(data):
+    return _BARE_AMPERSAND.sub(b"&amp;", data)
 
 
 def strip_ns(tag):
@@ -88,17 +101,23 @@ def parse_entries(xml_bytes):
 
 
 def fetch_recent_entries(url, cutoff):
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    request = urllib.request.Request(url, headers=REQUEST_HEADERS)
     try:
         with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:
             data = response.read()
     except Exception as exc:  # noqa: BLE001 - un flux en erreur ne doit pas casser les autres
         return [], str(exc)
 
+    if not data.strip():
+        return [], "réponse vide"
+
     try:
         entries = parse_entries(data)
-    except ET.ParseError as exc:
-        return [], f"flux illisible ({exc})"
+    except ET.ParseError:
+        try:
+            entries = parse_entries(sanitize_xml(data))
+        except ET.ParseError as exc:
+            return [], f"flux illisible ({exc})"
 
     recent = [
         (title, link)

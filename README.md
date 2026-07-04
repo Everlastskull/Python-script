@@ -92,7 +92,11 @@ Ces deux activités sont complémentaires mais distinctes. Dans un dossier RNCP 
 
 Une GitHub Action (`.github/workflows/cyber-watch-digest.yml`) tourne chaque matin (6h UTC) et envoie par email les nouveaux articles publiés sur les 24 dernières heures, groupés par catégorie. Le script est dans `cyber-watch/digest.py` (bibliothèque standard uniquement, aucune dépendance à installer), la liste des flux dans `cyber-watch/feeds.py`.
 
-Certaines sources du tableau ci-dessus n'ont pas de flux RSS fiable (RSS discontinué, absent, ou introuvable) et ne sont donc pas incluses dans l'automatisation : ENISA, Legifrance, Claroty Team82, NVD, AttackerKB, Mandiant/Google Cloud. Elles restent à consulter manuellement.
+Certaines sources du tableau ci-dessus ne sont pas incluses dans l'automatisation et restent à consulter manuellement :
+- **Pas de flux RSS fiable** (RSS discontinué, absent, ou introuvable) : ENISA, Legifrance, Claroty Team82, NVD, AttackerKB, Mandiant/Google Cloud
+- **Protection anti-bot** (Cloudflare "Bot Fight Mode" ou équivalent gouvernemental, qui renvoie un défi JavaScript ou une réponse vide aux clients scriptés — y compris depuis les runners GitHub Actions, sans contournement possible sans navigateur réel) : CERT-FR (avis/alertes/bulletins), Recorded Future, Sekoia.io, CISA ICS Advisories, Dragos
+
+La liste à jour de ces sources manuelles est reprise chaque jour en bas du digest email (`cyber-watch/feeds.py::MANUAL_ONLY`).
 
 ### Configuration requise
 

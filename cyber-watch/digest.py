@@ -10,16 +10,20 @@ import os
 import re
 import smtplib
 import sys
+import time
+import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from feeds import FEEDS
+from feeds import FEEDS, MANUAL_ONLY
 
 LOOKBACK_HOURS = int(os.environ.get("DIGEST_LOOKBACK_HOURS", "24"))
 REQUEST_TIMEOUT = 15
+NETWORK_RETRIES = 2
+RETRY_DELAY_SECONDS = 3
 # Se présenter comme un vrai lecteur RSS : certains sites (CERT-FR, CISA...)
 # renvoient une réponse vide ou un 403 aux clients HTTP non identifiés.
 REQUEST_HEADERS = {
@@ -100,13 +104,29 @@ def parse_entries(xml_bytes):
     return items
 
 
-def fetch_recent_entries(url, cutoff):
+def fetch_with_retry(url):
+    """Récupère l'URL, en ré-essayant seulement les erreurs réseau transitoires
+    (timeout, DNS, connexion). Les erreurs HTTP (403/404...) sont définitives :
+    inutile de les ré-essayer."""
     request = urllib.request.Request(url, headers=REQUEST_HEADERS)
-    try:
-        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:
-            data = response.read()
-    except Exception as exc:  # noqa: BLE001 - un flux en erreur ne doit pas casser les autres
-        return [], str(exc)
+    last_error = None
+    for attempt in range(NETWORK_RETRIES + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:
+                return response.read(), None
+        except urllib.error.HTTPError as exc:
+            return None, f"HTTP {exc.code}"
+        except Exception as exc:  # noqa: BLE001 - un flux en erreur ne doit pas casser les autres
+            last_error = str(exc)
+            if attempt < NETWORK_RETRIES:
+                time.sleep(RETRY_DELAY_SECONDS)
+    return None, last_error
+
+
+def fetch_recent_entries(url, cutoff):
+    data, error = fetch_with_retry(url)
+    if error:
+        return [], error
 
     if not data.strip():
         return [], "réponse vide"
@@ -144,6 +164,12 @@ def build_digest():
                 lines.append(f"      * {title}\n        {link}")
         if lines:
             sections.append(f"{category}\n" + "\n".join(lines))
+
+    if MANUAL_ONLY:
+        manual = "\n".join(f"  - {name}" for name in MANUAL_ONLY)
+        sections.append(
+            "À consulter manuellement (pas de flux RSS exploitable automatiquement)\n" + manual
+        )
 
     if not sections:
         return None
